@@ -1,0 +1,11 @@
+{
+  "apps": [
+    {
+      "name": "mtsw",
+      "script": "app.js",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}
