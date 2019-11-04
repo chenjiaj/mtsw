@@ -10,9 +10,6 @@ const router = require('./server/router');
 const config = require('./config/index');
 const history = require('./middleware/koa2-connect-history-api-fallback');
 
-app.use(KoaBody());
-
-
 app.use(history({
   verbose: true
 }));
@@ -41,6 +38,10 @@ if (app.env === 'development') {
 } else {
   app.use(staticCache(path.join(__dirname, '/dist')));
 }
+
+app.use(KoaBody({
+  multipart: true
+}));
 
 app.use(async (ctx, next) => {
   await next();
