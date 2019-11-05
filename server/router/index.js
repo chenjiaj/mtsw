@@ -4,76 +4,120 @@
 const path = require('path');
 const fs = require('fs');
 const Router = require('koa-router');
-const request = require('request');
+const uuidv1 = require('uuid/v1');
+const rootPath = path.join(__dirname, '../../download/'); // 存放静态文件整个跟路径
+
 const router = new Router();
+const {
+  getImg,
+  getAllFinish,
+  deleteFolder,
+  compressingDir
+} = require('../utils/utils');
 
-const getImg = (url, downloadUrl) => {
-  return new Promise((resolve, reject) => {
-    const writeStream = fs.createWriteStream(downloadUrl);
-    request(url).pipe(writeStream);
-    writeStream.on("finish", function () {
-      console.log('-- 完成');
-      writeStream.end();
-      resolve();
-    });
+router.get('/list', ctx => {
+  const query = ctx.request.query;
+  let uid = query.uid;
+  const userRootPath =  `${rootPath}/${uid}`;
 
-    writeStream.on("error", function () {
-      writeStream.end();
-      reject();
-    });
-  });
-};
+  if (!uid) {
+    uid = uuidv1();
+    ctx.body = {
+      code: -1,
+      uid
+    };
+    return;
+  }
 
-const getAllFinish = all => {
-  return new Promise((resolve, reject) => {
-    Promise.all(all).then(()=>{
-      console.log('全部完成');
-    }).then(()=>{
-      resolve();
-    }).then(()=>{
-      reject();
-    });
-  })
-};
+  if (!fs.existsSync(rootPath) || !fs.existsSync(userRootPath)) {
+    ctx.body = {
+      code: 0,
+      list: []
+    };
+    return;
+  }
+
+  const files = fs.readdirSync(userRootPath);
+
+  ctx.body = {
+    code: 0,
+    list: files
+  }
+});
 
 router.post('/upload', async ctx => {
   const file = ctx.request.files.file;
-  // const reader = fs.createReadStream(file.path);
-  // const uploadPath = path.join(__dirname, '../../upload/');
-  const downloadPath = path.join(__dirname, '../../download/');
-  // let filePath = uploadPath + `${file.name}`;
-  //
-  // if (!fs.existsSync(uploadPath)) {
-  //   fs.mkdirSync(uploadPath);
-  // }
+  const uid = ctx.request.body.uid;
+  const fileNameReg = /(.*).md$/;
+  const fileName = file.name.match(fileNameReg)[1];
+  const imgDirName = `${fileName.replace('(', '').replace(')', '')}-img`;
+  const userRootPath =  `${rootPath}/${uid}`;
+  const currFileRootPath = `${userRootPath}/${fileName}/`; // 当前文件跟路径
+  const imgPath = `${currFileRootPath}/${imgDirName}/`; // 图片存放的路径
+  const filePath = `${currFileRootPath}/${file.name}`; //markdown文件存放的路径
+  const compressingPath = `download/${fileName}/.`; // 需要压缩的文件夹
+  const saveCompressingPath = `${userRootPath}/${fileName}.tgz`; // 压缩文件存放的位置
+  const prefixImgPath = `/images/${imgDirName}`; //新markdown中图片路径
 
-  if (!fs.existsSync(downloadPath)) {
-    fs.mkdirSync(downloadPath);
+  if (!uid) {
+    ctx.body = {
+      code: -1,
+      message: '用户信息错误'
+    };
+    return;
   }
 
-  // const upStream = fs.createWriteStream(filePath);
-  // reader.pipe(upStream);
+  if (!fs.existsSync(rootPath)) {
+    fs.mkdirSync(rootPath);
+  }
 
-  const fileContent = fs.readFileSync(file.path, 'utf8');
+  if (!fs.existsSync(userRootPath)) {
+    fs.mkdirSync(userRootPath);
+  }
+
+  if (!fs.existsSync(currFileRootPath)) {
+    fs.mkdirSync(currFileRootPath);
+  } else {
+    deleteFolder(currFileRootPath);
+    fs.mkdirSync(currFileRootPath);
+  }
+
+  let fileContent = fs.readFileSync(file.path, 'utf8');
+  let fileContentString = fileContent.toString();
   const reg = /!\[.*\]\(([http|https].*)\)/g;
   const matchArr = fileContent.match(reg) || [];
 
   if (matchArr.length > 0) {
+    const imgArr = [];
+    if (!fs.existsSync(imgPath)) {
+      fs.mkdirSync(imgPath);
+    }
     const all = matchArr.map(async (item, index) => {
-      const urlReg = /\(([http|https].*)\)/;
-      const url = item.match(urlReg)[1];
-      const downloadUrl = `${downloadPath}${file.name}${index}.png`;
+      const urlReg = /(\[.*\])\(([http|https].*)\)/;
+      const matchResult = item.match(urlReg);
+      const url = matchResult[2];
+      const downloadUrl = `${imgPath}/${index + 1}.png`;
       await getImg(url, downloadUrl);
-      console.log('完成1');
+      imgArr.push({
+        oldText: item,
+        newText: `!${matchResult[1]}(${prefixImgPath}/${index + 1}.png)`
+      });
     });
 
     await getAllFinish(all);
 
-    console.log('最后执行');
+    imgArr.forEach(item => {
+      fileContentString = fileContentString.replace(item.oldText, item.newText);
+    });
   }
+
+  fs.writeFileSync(filePath, fileContentString, 'utf8');
+
+  // compressingDir(compressingPath, saveCompressingPath);
 
   return ctx.body = {
     code: 0,
+    fileName: fileName,
     message: '上传成功'
   }
 });

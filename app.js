@@ -39,6 +39,8 @@ if (app.env === 'development') {
   app.use(staticCache(path.join(__dirname, '/dist')));
 }
 
+app.use(staticCache(path.join(__dirname, '/download')));
+
 app.use(KoaBody({
   multipart: true
 }));
