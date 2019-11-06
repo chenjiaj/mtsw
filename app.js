@@ -3,7 +3,7 @@
  */
 const Koa = require('koa');
 const KoaBody = require('koa-body');
-const staticCache = require('koa-static-cache');
+const koaStatic = require('koa-static');
 const path = require('path');
 const app = new Koa();
 const router = require('./server/router');
@@ -36,10 +36,10 @@ if (app.env === 'development') {
   }));
   app.use(hotMiddleware(compiler));
 } else {
-  app.use(staticCache(path.join(__dirname, '/dist')));
+  app.use(koaStatic(path.join(__dirname, '/dist')));
 }
 
-app.use(staticCache(path.join(__dirname, '/download')));
+app.use(koaStatic(path.join(__dirname, '/download')));
 
 app.use(KoaBody({
   multipart: true

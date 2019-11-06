@@ -6,19 +6,19 @@ const fs = require('fs');
 const Router = require('koa-router');
 const uuidv1 = require('uuid/v1');
 const rootPath = path.join(__dirname, '../../download/'); // 存放静态文件整个跟路径
+const filter = require('../utils/filter');
 
 const router = new Router();
 const {
   getImg,
   getAllFinish,
   deleteFolder,
-  compressingDir
+  compressingMulDir
 } = require('../utils/utils');
 
 router.get('/list', ctx => {
-  const query = ctx.request.query;
-  let uid = query.uid;
-  const userRootPath =  `${rootPath}/${uid}`;
+  let { uid } = ctx.request.query;
+  const userRootPath = `${rootPath}/${uid}`;
 
   if (!uid) {
     uid = uuidv1();
@@ -38,34 +38,29 @@ router.get('/list', ctx => {
   }
 
   const files = fs.readdirSync(userRootPath);
+  const dirs = files.filter(item => {
+    return fs.lstatSync(`${userRootPath}/${item}`).isDirectory()
+  });
 
   ctx.body = {
     code: 0,
-    list: files
+    list: dirs
   }
 });
 
-router.post('/upload', async ctx => {
-  const file = ctx.request.files.file;
-  const uid = ctx.request.body.uid;
+router.post('/upload', filter, async ctx => {
+  const { file } = ctx.request.files;
+  const { uid } = ctx.request.body;
   const fileNameReg = /(.*).md$/;
   const fileName = file.name.match(fileNameReg)[1];
   const imgDirName = `${fileName.replace('(', '').replace(')', '')}-img`;
-  const userRootPath =  `${rootPath}/${uid}`;
-  const currFileRootPath = `${userRootPath}/${fileName}/`; // 当前文件跟路径
-  const imgPath = `${currFileRootPath}/${imgDirName}/`; // 图片存放的路径
-  const filePath = `${currFileRootPath}/${file.name}`; //markdown文件存放的路径
-  const compressingPath = `download/${fileName}/.`; // 需要压缩的文件夹
-  const saveCompressingPath = `${userRootPath}/${fileName}.tgz`; // 压缩文件存放的位置
+  const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
+  const currFileUserRootPath = `${userRootPath}/${fileName}/`; // 当前文件在当前用户下的跟路径
+  const imgPath = `${currFileUserRootPath}/${imgDirName}/`; // 图片存放的路径
+  const filePath = `${currFileUserRootPath}/${file.name}`; //markdown文件存放的路径
+  // const compressingPath = `download/${fileName}/.`; // 需要压缩的文件夹
+  // const saveCompressingPath = `${userRootPath}/${fileName}.tgz`; // 压缩文件存放的位置
   const prefixImgPath = `/images/${imgDirName}`; //新markdown中图片路径
-
-  if (!uid) {
-    ctx.body = {
-      code: -1,
-      message: '用户信息错误'
-    };
-    return;
-  }
 
   if (!fs.existsSync(rootPath)) {
     fs.mkdirSync(rootPath);
@@ -75,14 +70,14 @@ router.post('/upload', async ctx => {
     fs.mkdirSync(userRootPath);
   }
 
-  if (!fs.existsSync(currFileRootPath)) {
-    fs.mkdirSync(currFileRootPath);
+  if (!fs.existsSync(currFileUserRootPath)) {
+    fs.mkdirSync(currFileUserRootPath);
   } else {
-    deleteFolder(currFileRootPath);
-    fs.mkdirSync(currFileRootPath);
+    deleteFolder(currFileUserRootPath);
+    fs.mkdirSync(currFileUserRootPath);
   }
 
-  let fileContent = fs.readFileSync(file.path, 'utf8');
+  const fileContent = fs.readFileSync(file.path, 'utf8');
   let fileContentString = fileContent.toString();
   const reg = /!\[.*\]\(([http|https].*)\)/g;
   const matchArr = fileContent.match(reg) || [];
@@ -119,6 +114,75 @@ router.post('/upload', async ctx => {
     code: 0,
     fileName: fileName,
     message: '上传成功'
+  }
+});
+
+router.post('/deleteFiles', filter, ctx => {
+  const { uid, fileNames } = ctx.request.body;
+  const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
+
+  if (fileNames.length > 0) {
+    fileNames.forEach(item => {
+      const filePath = `${userRootPath}/${item}`;
+      deleteFolder(filePath);
+    });
+  }
+
+  ctx.body = {
+    code: 0
+  }
+});
+
+
+router.get('/download', async ctx => {
+  const { uid, type, fileNames } = ctx.request.query;
+  const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
+  const temp = +new Date();
+
+  if (!uid) {
+    ctx.body = {
+      code: -1,
+      message: '用户信息不全，请刷新网页'
+    };
+
+    return;
+  }
+
+  if (type === 'markdown') {
+
+    return;
+  }
+
+
+  if (type === 'images') {
+
+    return;
+  }
+
+
+  const fileArr = JSON.parse(fileNames);
+  let compressDirArr = [];
+
+  fileArr.forEach(item => {
+    compressDirArr.push(`download/${uid}/${item}/.`);
+  });
+
+  await compressingMulDir(compressDirArr, `download/${uid}/${temp}.tgz`);
+
+  ctx.body = {
+    code: 0,
+    url: `http://localhost:8008/${uid}/${temp}.tgz`
+  }
+});
+
+router.post('/clearAll', ctx => {
+  const { uid } = ctx.request.body;
+  const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
+  if (fs.existsSync(userRootPath)) {
+    deleteFolder(userRootPath);
+  }
+  ctx.body = {
+    code: 0
   }
 });
 

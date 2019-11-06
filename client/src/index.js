@@ -6,6 +6,8 @@ import {
   Upload,
   Table,
   Button,
+  Message,
+  MessageBox,
   TableColumn
 } from 'element-ui';
 import router from './view/router';
@@ -19,6 +21,8 @@ Vue.use(Upload);
 Vue.use(Table);
 Vue.use(Button);
 Vue.use(TableColumn);
+Vue.prototype.$message = Message;
+Vue.prototype.$confirm = MessageBox.confirm;
 
 new Vue({
   el: '#app',

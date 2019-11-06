@@ -57,9 +57,29 @@ const compressingDir = (dir, savePath) => {
   });
 };
 
+const compressingMulDir = (arrPath, savePath) => {
+  return new Promise((resolve, reject) => {
+    const tarStream = new compressing.tgz.Stream();
+    arrPath.forEach(item => {
+      tarStream.addEntry(item);
+    });
+    tarStream
+      .on('error', err => {
+        reject(err);
+      })
+      .pipe(fs.createWriteStream(savePath))
+      .on('error', err => {
+        reject(err)
+      }).on('finish', data => {
+      resolve(data);
+    });
+  });
+};
+
 module.exports = {
   getImg,
   getAllFinish,
   deleteFolder,
-  compressingDir
+  compressingDir,
+  compressingMulDir
 };
