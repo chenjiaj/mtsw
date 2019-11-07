@@ -21,12 +21,12 @@
         </el-upload>
 
         <div class="btn-wrapper">
-            <el-button type="danger" @click="deleteFiles" :disabled="checkedArr<=0">删除</el-button>
+            <el-button type="danger" @click="deleteFiles" :disabled="checkedArr<=0">批量删除</el-button>
             <el-button type="danger" @click="clearAll">全部清空</el-button>
             <el-button type="primary" @click="getData">刷新列表</el-button>
             <el-button type="primary" @click="download('markdown')" :disabled="checkedArr<=0">下载markdown</el-button>
             <el-button type="primary" @click="download('images')" :disabled="checkedArr<=0">下载图片</el-button>
-            <el-button type="primary" @click="download" :disabled="checkedArr<=0">全部图片和markdown</el-button>
+            <el-button type="primary" @click="download" :disabled="checkedArr<=0">下载图片和markdown</el-button>
         </div>
 
         <el-table
