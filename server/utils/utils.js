@@ -76,10 +76,15 @@ const compressingMulDir = (arrPath, savePath) => {
   });
 };
 
+const getImgName = fileName => {
+  return `${fileName.replace('(', '').replace(')', '')}-img`;
+};
+
 module.exports = {
   getImg,
   getAllFinish,
   deleteFolder,
   compressingDir,
-  compressingMulDir
+  compressingMulDir,
+  getImgName
 };

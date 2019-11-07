@@ -13,7 +13,8 @@ const {
   getImg,
   getAllFinish,
   deleteFolder,
-  compressingMulDir
+  compressingMulDir,
+  getImgName
 } = require('../utils/utils');
 
 router.get('/list', ctx => {
@@ -53,7 +54,7 @@ router.post('/upload', filter, async ctx => {
   const { uid } = ctx.request.body;
   const fileNameReg = /(.*).md$/;
   const fileName = file.name.match(fileNameReg)[1];
-  const imgDirName = `${fileName.replace('(', '').replace(')', '')}-img`;
+  const imgDirName = getImgName(fileName);
   const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
   const currFileUserRootPath = `${userRootPath}/${fileName}/`; // 当前文件在当前用户下的跟路径
   const imgPath = `${currFileUserRootPath}/${imgDirName}/`; // 图片存放的路径
@@ -138,6 +139,8 @@ router.get('/download', async ctx => {
   const { uid, type, fileNames } = ctx.request.query;
   const userRootPath = `${rootPath}/${uid}`; // 当前用户根目录
   const temp = +new Date();
+  const fileArr = JSON.parse(fileNames);
+  let compressDirArr = [];
 
   if (!uid) {
     ctx.body = {
@@ -149,29 +152,50 @@ router.get('/download', async ctx => {
   }
 
   if (type === 'markdown') {
+    fileArr.forEach(item => {
+      fs.readdirSync(`${userRootPath}/${item}`).forEach(file => {
+        if (!fs.lstatSync(`${userRootPath}/${item}/${file}`).isDirectory()) {
+          compressDirArr.push(`download/${uid}/${item}/${file}`);
+        }
+      });
+    });
 
+    await compressingMulDir(compressDirArr, `download/${uid}/${temp}-markdown文件.tgz`);
+    ctx.body = {
+      code: 0,
+      url: `http://localhost:8008/${uid}/${temp}-markdown文件.tgz`
+    };
     return;
   }
 
 
   if (type === 'images') {
+    fileArr.forEach(item => {
+      fs.readdirSync(`${userRootPath}/${item}`).forEach(file => {
+        if (fs.lstatSync(`${userRootPath}/${item}/${file}`).isDirectory()) {
+          compressDirArr.push(`download/${uid}/${item}/${file}`);
+        }
+      });
+    });
 
+    await compressingMulDir(compressDirArr, `download/${uid}/${temp}-图片.tgz`);
+    ctx.body = {
+      code: 0,
+      url: `http://localhost:8008/${uid}/${temp}-图片.tgz`
+    };
     return;
   }
 
-
-  const fileArr = JSON.parse(fileNames);
-  let compressDirArr = [];
 
   fileArr.forEach(item => {
     compressDirArr.push(`download/${uid}/${item}/.`);
   });
 
-  await compressingMulDir(compressDirArr, `download/${uid}/${temp}.tgz`);
+  await compressingMulDir(compressDirArr, `download/${uid}/${temp}-markdown和图片.tgz`);
 
   ctx.body = {
     code: 0,
-    url: `http://localhost:8008/${uid}/${temp}.tgz`
+    url: `http://localhost:8008/${uid}/${temp}-markdown和图片.tgz`
   }
 });
 
