@@ -107,6 +107,9 @@ router.post('/upload', filter, async ctx => {
     });
   }
 
+  fileContentString = fileContentString.replace(/<!--/, '');
+  fileContentString = fileContentString.replace(/-->/, '');
+
   fs.writeFileSync(filePath, fileContentString, 'utf8');
 
   // compressingDir(compressingPath, saveCompressingPath);
